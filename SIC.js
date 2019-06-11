@@ -38,7 +38,15 @@ lineReader2.on('line', function(line) {
         opCode: 'null', 
         Addressing: 'null'
     }
-
+    // tmp[no]={
+    //     line: no, 
+    //     loc:'null', 
+    //     label: inputdata[0], 
+    //     Mnemonic: inputdata[1], 
+    //     oprand: inputdata[2], 
+    //     opCode: 'null', 
+    //     Addressing: 'null'
+    // }
     if(inputdata.includes('START')){
         //inputvalue = true;
         tmp[no].label = inputdata[0];
@@ -47,13 +55,17 @@ lineReader2.on('line', function(line) {
         tmp[no].loc = inputdata[2] ;
         loc = parseInt(inputdata[2],16);
     }
-
+    // if(inputdata.length == 2 && !inputdata.includes('RSUB')){
+    //     inputdata.splice(0, 0, 'null');
+    // }
     if (SymbolTable.has(inputdata[0])){
         checkAddressing++;
-        inputvalue = true;
+        //inputvalue = true;
+        if(!inputdata.includes('RSUB'))
+            tmp[no].oprand = inputdata[1];
         tmp[no].loc = loc.toString(16);
         tmp[no].Mnemonic = inputdata[0];
-        tmp[no].oprand = inputdata[1];
+        
         tmp[no].opCode = SymbolTable.get(inputdata[0]);
         tmp[no].Addressing = 'direct';
         loc = loc + 3;
@@ -61,26 +73,26 @@ lineReader2.on('line', function(line) {
     if(SymbolTable.has(inputdata[1])){
         checkAddressing++;
         inputvalue = true;
+        if(!inputdata.includes('RSUB'))
+            tmp[no].oprand = inputdata[2];
         tmp[no].loc = loc.toString(16);
         tmp[no].label = inputdata[0];
         tmp[no].Mnemonic = inputdata[1];
-        tmp[no].oprand = inputdata[2];
         tmp[no].opCode = SymbolTable.get(inputdata[1]);
         tmp[no].Addressing = 'direct';
-        // if(checkAddressing == 1)
-        //     tmp[no].Addressing = 'index'
-        // else if(checkAddressing == 0)
-        //     tmp[no].Addressing = 'direct'
         loc = loc + 3;
     }
     if(inputdata.includes('BUFFER,')){
         tmp[no].Addressing = 'index';
-        inputdata[inputdata.indexOf('X') - 1] = inputdata[inputdata.indexOf('X') - 1] + "X"
+        let oprand = inputdata[inputdata.indexOf('BUFFER,')] + "X";
+        tmp[no].oprand = oprand;
     }
+    if(inputdata.includes('BUFFER,X'))
+        tmp[no].Addressing = 'index';
     if(inputdata.includes('END')){
         tmp[no].label = inputdata[0];
         tmp[no].Mnemonic = inputdata[1];
-        tmp[no].oprand = inputdata[2];
+        //tmp[no].oprand = inputdata[2];
         tmp[no].loc = loc.toString(16);
         console.log(tmp[no].loc)
         console.log("End of the program!")
@@ -123,6 +135,10 @@ lineReader2.on('line', function(line) {
         tmp[no].Addressing = 'direct';
         loc = loc + 3;
     }
+    // if(inputdata.includes('RSUB') && inputdata.length==1){
+    //     inputdata.splice(0, 0, 'null');
+    //     inputdata.splice(2, 0, 'null');
+    // }
     if(inputdata.includes('RSUB')){
         if(inputdata.indexOf('RSUB')-1 == 0)
             tmp[no].label=inputdata[inputdata.indexOf('RSUB')-1];
@@ -140,7 +156,8 @@ lineReader2.on('line', function(line) {
     fs.writeFile("./middle.json",JSON.stringify(tmp), (err) => {
         if (err) console.log(err)
     });
-
+    if(no == 38 || no == 52)
+        console.log(inputdata)
     // fs.writeFile("./middle.txt",JSON.stringify(tmp) ,(err) => {
     //     if (err) console.log(err)
     // });
