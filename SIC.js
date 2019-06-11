@@ -1,15 +1,16 @@
 var fs = require('fs');
 var readline = require('readline');
-const SymbolTable = new Map();
+const opTable = new Map();
+const SymbolTable = [];
 const tmp = require("./middle.txt");
-//const error = require("./error.json");
+const error = require("./error.json");
 
 //讀入opCode
 var inputStream = fs.createReadStream('opCode.txt');
 var lineReader = readline.createInterface({ input: inputStream });
 lineReader.on('line', function(line) {
     let x = line.toString().trim().split(' ')
-    SymbolTable.set(x[0],x[1]);
+    opTable.set(x[0],x[1]);
 
 });
 //讀入asm
@@ -19,7 +20,6 @@ var lineReader2 = readline.createInterface({ input: inputStream2 });
 var no = 1;
 var loc = 0;
 lineReader2.on('line', function(line) {
-    //var inputvalue = false;
     var checkAddressing = -1;
     //去除註解
     if(line.includes('.'))
@@ -47,38 +47,40 @@ lineReader2.on('line', function(line) {
     //     opCode: 'null', 
     //     Addressing: 'null'
     // }
+    if(inputdata.length == 2 && !inputdata.includes('RSUB')){
+        tmp[no].Mnemonic = inputdata[0];
+        tmp[no].oprand = inputdata[1];
+        tmp[no].loc = loc.toString(16);
+        tmp[no].Addressing = 'direct';
+        loc = loc + 3;
+    }
     if(inputdata.includes('START')){
-        //inputvalue = true;
         tmp[no].label = inputdata[0];
         tmp[no].Mnemonic = inputdata[1];
         tmp[no].oprand = inputdata[2];
         tmp[no].loc = inputdata[2] ;
         loc = parseInt(inputdata[2],16);
     }
-    // if(inputdata.length == 2 && !inputdata.includes('RSUB')){
-    //     inputdata.splice(0, 0, 'null');
-    // }
-    if (SymbolTable.has(inputdata[0])){
+
+    if (opTable.has(inputdata[0])){
         checkAddressing++;
-        //inputvalue = true;
         if(!inputdata.includes('RSUB'))
             tmp[no].oprand = inputdata[1];
         tmp[no].loc = loc.toString(16);
         tmp[no].Mnemonic = inputdata[0];
         
-        tmp[no].opCode = SymbolTable.get(inputdata[0]);
+        tmp[no].opCode = opTable.get(inputdata[0]);
         tmp[no].Addressing = 'direct';
         loc = loc + 3;
     }
-    if(SymbolTable.has(inputdata[1])){
+    if(opTable.has(inputdata[1])){
         checkAddressing++;
-        inputvalue = true;
         if(!inputdata.includes('RSUB'))
             tmp[no].oprand = inputdata[2];
         tmp[no].loc = loc.toString(16);
         tmp[no].label = inputdata[0];
         tmp[no].Mnemonic = inputdata[1];
-        tmp[no].opCode = SymbolTable.get(inputdata[1]);
+        tmp[no].opCode = opTable.get(inputdata[1]);
         tmp[no].Addressing = 'direct';
         loc = loc + 3;
     }
@@ -90,12 +92,11 @@ lineReader2.on('line', function(line) {
     if(inputdata.includes('BUFFER,X'))
         tmp[no].Addressing = 'index';
     if(inputdata.includes('END')){
-        tmp[no].label = inputdata[0];
-        tmp[no].Mnemonic = inputdata[1];
-        //tmp[no].oprand = inputdata[2];
+        tmp[no].Mnemonic = inputdata[0];
+        tmp[no].oprand = inputdata[1];
+        //tmp[no].label = inputdata[0];
+        //tmp[no].Mnemonic = inputdata[1];
         tmp[no].loc = loc.toString(16);
-        console.log(tmp[no].loc)
-        console.log("End of the program!")
     }
     //loc 特殊情況
     if(inputdata[1]=='BYTE'){
@@ -115,8 +116,6 @@ lineReader2.on('line', function(line) {
         tmp[no].oprand = inputdata[2];
         tmp[no].loc = loc.toString(16);
         tmp[no].Addressing = 'direct';
-        //console.log(parseInt(inputdata[2],10).toString(16));
-        //console.log(parseInt(parseInt(inputdata[2],10).toString(16),10));
         loc = loc + parseInt(inputdata[2],10);
     }
     if(inputdata[1]=='RESW'){
@@ -135,19 +134,24 @@ lineReader2.on('line', function(line) {
         tmp[no].Addressing = 'direct';
         loc = loc + 3;
     }
-    // if(inputdata.includes('RSUB') && inputdata.length==1){
-    //     inputdata.splice(0, 0, 'null');
-    //     inputdata.splice(2, 0, 'null');
-    // }
     if(inputdata.includes('RSUB')){
         if(inputdata.indexOf('RSUB')-1 == 0)
             tmp[no].label=inputdata[inputdata.indexOf('RSUB')-1];
-        tmp[no].opCode =SymbolTable.get('RSUB');
+        tmp[no].opCode =opTable.get('RSUB');
         tmp[no].Addressing = 'NULL';
         loc = loc;
     }
-    //console.log(tmp[no].loc)
-
+    //重複定義ERROR
+    if(tmp[no].label != 'null' && !SymbolTable.includes(tmp[no].label))
+        SymbolTable.push(tmp[no].label);
+    else if(tmp[no].label != 'null' && SymbolTable.includes(tmp[no].label)){
+        error[no] = {
+            line: tmp[no].line ,
+            type: ' redefined',
+            reason: ''
+        }
+        error[no].reason = tmp[no].label + error[no].type;
+    }
     var midData = tmp[no].loc + ' ' + tmp[no].label + ' ' + tmp[no].Mnemonic + ' ' + tmp[no].oprand + ' ' + tmp[no].opCode + ' ' + tmp[no].Addressing + '\n';
     fs.appendFile("./middle.txt",midData , function (err){
         if (err) console.log(err)
@@ -156,15 +160,12 @@ lineReader2.on('line', function(line) {
     fs.writeFile("./middle.json",JSON.stringify(tmp), (err) => {
         if (err) console.log(err)
     });
-    if(no == 38 || no == 52)
-        console.log(inputdata)
-    // fs.writeFile("./middle.txt",JSON.stringify(tmp) ,(err) => {
-    //     if (err) console.log(err)
-    // });
-    // fs.appendFile("./error.json",JSON.stringify(error),(err) => {
-    //     if (err) console.log(err)
-    // });
-    //console.log(tmp[label])
+    fs.writeFile("./SymbolTable.json",JSON.stringify(SymbolTable), (err) => {
+        if (err) console.log(err)
+    });
+    fs.writeFile("./error.json",JSON.stringify(error), (err) => {
+        if (err) console.log(err)
+    });
     no ++;
 });
 

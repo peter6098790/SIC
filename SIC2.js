@@ -1,29 +1,23 @@
 var fs = require('fs');
-//var readline = require('readline');
-//const SymbolTable = new Map();
+const SymbolTable = require("./SymbolTable.json")
 const tmp = require("./middle.json");
-//const error = require("./error.txt");
-const errTable = new Map();
+const error = require("./error.json");
 
 //找location number
 function checkloc(Target){
     for (var key in tmp) {
-        // if(tmp[key].element == Target)
-        //     return [parseInt(tmp[key].loc,16),tmp[key].label]
-        // else 
         if(tmp[key].label == Target)
-            return parseInt(tmp[key].loc,16)
+            return parseInt(tmp[key].loc,16);
         if(tmp[key].Mnemonic == Target)
-            return parseInt(tmp[key].loc,16)
+            return parseInt(tmp[key].loc,16);
         else if(tmp[key].oprand == Target)
-            return parseInt(tmp[key].loc,16)
-        //console.log(tmp[key].loc + ' ' + tmp[key].label + ' ' + tmp[key].Mnemonic + ' ' + tmp[key].oprand + ' ' + tmp[key].opCode + ' ' + tmp[key].Addressing)
+            return parseInt(tmp[key].loc,16);
     }
 }
 function checkOprand(Target){
     for (var key in tmp) {
-        if(tmp[key].label == Target)
-            return tmp[key].Mnemonic;
+        if(tmp[key].Mnemonic == Target)
+            return tmp[key].oprand;
     }
 }
 function checkLabel(Target){
@@ -38,46 +32,55 @@ function getLabelLoc(Target){
             return parseInt(tmp[key].loc,16)
     }
 }
-function checkRedefined(){
-    //label中已經出現過又不是null的
-}
-function getLabel(){
-    let labelArr = [];
-    for (var key in tmp) {
-        if(tmp[key].label !='null' && tmp[key].label !='END')
-            labelArr.push(tmp[key].label);
-    }
-    return labelArr;
-}
+
 async function checkUndefined(){
     let oprand;
-    let labelArr = await getLabel();
-    let errorStr = '為未定義的Symbol'
     for (var key in tmp) {
-        if(tmp[key].Mnemonic != ('null') && tmp[key].Mnemonic != 'START' && tmp[key].Mnemonic != 'END' && tmp[key].Mnemonic != 'WORD' && tmp[key].Mnemonic != 'BYTE' && tmp[key].Mnemonic != 'RESW' && tmp[key].Mnemonic != 'RESB' ){
-            oprand = tmp[key].oprand;
-            if(labelArr.indexOf(oprand)== -1){
-                errorStr = tmp[key].oprand + errorStr;
-                errTable.set(tmp[key].line,errorStr)
+        if(tmp[key].oprand.substring(0,6) == 'BUFFER'){
+            oprand = tmp[key].oprand.substring(0,6) ;
+            if(!SymbolTable.includes(oprand)){
+                error[key] = {
+                    line: tmp[key].line ,
+                    type: ' is undefined!',
+                    reason: ''
+                }
+                error[key].reason = oprand + error[key].type;
             }
         }
-        if(tmp[key].oprand == ('BUFFER,X'))
-            oprandArr = 'BUFFER' ;
-            if(labelArr.indexOf(oprand)== -1){
-                errorStr = tmp[key].oprand + errorStr;
-                errTable.set(tmp[key].line,errorStr)
+        else if(tmp[key].Mnemonic != 'null' && tmp[key].Mnemonic != 'START' && tmp[key].Mnemonic != 'END' && tmp[key].Mnemonic != 'WORD' && tmp[key].Mnemonic != 'BYTE' && tmp[key].Mnemonic != 'RESW' && tmp[key].Mnemonic != 'RESB' && tmp[key].Mnemonic != 'RSUB'){
+            oprand = tmp[key].oprand;
+            //oprand = tmp[key].oprand.substring(0,6) ;
+            if(oprand != 'null' && !SymbolTable.includes(oprand)){
+                error[key] = {
+                    line: tmp[key].line ,
+                    type: ' is undefined!',
+                    reason: ''
+                }
+                error[key].reason = oprand + error[key].type;
             }
+        }
     }
-    // fs.appendFile("./error.txt",errTable , function (err){
-    //     if (err) console.log(err)
-    // });
+    fs.writeFile("./error.json",JSON.stringify(error), (err) => {
+        if (err) console.log(err)
+    });
+    return;
 //不是null&&mnemonic不適start,end,word,...label又查不到的
 }
 function checkMnemonicError(){
     for (var key in tmp) {
-        if(tmp[key].Mnemonic !== 'START' || 'END ' || 'WORD' || 'BYTE' || 'RESB' || 'RESW' && !tmp[key].opCode)
-            return tmp[key].line,tmp[key].Mnemonic;
+        if(tmp[key].Mnemonic != 'null' && tmp[key].Mnemonic != 'START' && tmp[key].Mnemonic != 'END' && tmp[key].Mnemonic != 'WORD' && tmp[key].Mnemonic != 'BYTE' && tmp[key].Mnemonic != 'RESB' && tmp[key].Mnemonic != 'RESW' && tmp[key].Mnemonic != 'RSUB' && tmp[key].opCode == 'null'){
+            error[key] = {
+                line: tmp[key].line ,
+                type: ' MnemonicError',
+                reason: ''
+            }
+            error[key].reason = tmp[key].Mnemonic + error[key].type;
+        }
     }
+    fs.writeFile("./error.json",JSON.stringify(error), (err) => {
+        if (err) console.log(err)
+    });
+    return;
 }
 
 //產生object code
@@ -85,7 +88,7 @@ async function generateObjCode(){
     var objectCode;
     var objCodeTable = new Map(); // key: line. value:[objcode,loc]
     for (var key in tmp){
-        if(tmp[key].Mnemonic != 'null' && tmp[key].Mnemonic != 'START' &&  tmp[key].label !='END' && tmp[key].Mnemonic !='RESW' && tmp[key].Mnemonic !='RESB' ){
+        if(tmp[key].Mnemonic != 'null' && tmp[key].Mnemonic != 'START' &&  tmp[key].Mnemonic !='END' && tmp[key].Mnemonic !='RESW' && tmp[key].Mnemonic !='RESB' ){
             let oprand ;
 
             if(tmp[key].Addressing == 'direct'){
@@ -141,7 +144,6 @@ async function getHeader(){
     let header = 'H' + ' ' + label + ' ' + '00' + head.toString(16) + ' ' + '00' + (end-head).toString(16);
     return header;
 }
-
 //組裝T部分
 async function getBody(){
     let str=' ';
@@ -157,9 +159,7 @@ async function getBody(){
         if(tmp[key].Mnemonic =='RESB' || tmp[key].Mnemonic =='RESW')
             nextLine = true;
         //結束push
-        if(tmp[key].label == 'END'){
-            // if(Tlength.toString(16).length == 1)
-            //     Tlength.toString(16) = '0' + Tlength.toString(16);
+        if(tmp[key].Mnemonic == 'END'){
             str = 'T ' + '00' + locArr[0] + ' ' + Tlength.toString(16) + str;
             bodyArr.push(str);
         }
@@ -194,13 +194,13 @@ async function getBody(){
     }
     return bodyArr;
 }
-getBody();
 //組裝E部分
 async function getTail(){
     let target = await checkOprand('END');
     let end = await checkloc(target)
     let ender = 'E' + ' ' + '00' + end.toString(16);
     return ender;
+    
 }
 async function showObjProgram(){
     let headStr = await getHeader();
@@ -212,7 +212,28 @@ async function showObjProgram(){
     });
     console.log(headStr + '\n' + bodyStr + endStr);
 }
-showObjProgram();
+
+checkUndefined();
+checkMnemonicError();
+main();
+
+//看error.json是否為空
+function isEmpty(obj) { 
+    for (var x in obj) { return false; }
+    return true;
+}
+//如果沒error就show 有就console.log error
+function main(){
+    if(isEmpty(error))
+        showObjProgram();
+    else{
+        for (var key in error){
+            console.log(`line:${error[key].line} ERROR: ${error[key].reason}`)
+        }
+    }
+}
+
+
 
 
 
