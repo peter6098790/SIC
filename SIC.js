@@ -20,7 +20,7 @@ var lineReader2 = readline.createInterface({ input: inputStream2 });
 var no = 1;
 var loc = 0;
 lineReader2.on('line', function(line) {
-    var checkAddressing = -1;
+    //var checkAddressing = -1;
     //去除註解
     if(line.includes('.'))
         line = line.substring(0,line.indexOf('.')-1)
@@ -38,22 +38,17 @@ lineReader2.on('line', function(line) {
         opCode: 'null', 
         Addressing: 'null'
     }
-    // tmp[no]={
-    //     line: no, 
-    //     loc:'null', 
-    //     label: inputdata[0], 
-    //     Mnemonic: inputdata[1], 
-    //     oprand: inputdata[2], 
-    //     opCode: 'null', 
-    //     Addressing: 'null'
-    // }
+
+    //2欄轉成3欄(指令),排除RSUB的情況,label補為null
     if(inputdata.length == 2 && !inputdata.includes('RSUB')){
         tmp[no].Mnemonic = inputdata[0];
         tmp[no].oprand = inputdata[1];
         tmp[no].loc = loc.toString(16);
         tmp[no].Addressing = 'direct';
-        loc = loc + 3;
+        //loc = loc + 3;
     }
+
+    //程式開始 設定起始location
     if(inputdata.includes('START')){
         tmp[no].label = inputdata[0];
         tmp[no].Mnemonic = inputdata[1];
@@ -63,7 +58,7 @@ lineReader2.on('line', function(line) {
     }
 
     if (opTable.has(inputdata[0])){
-        checkAddressing++;
+        //checkAddressing++;
         if(!inputdata.includes('RSUB'))
             tmp[no].oprand = inputdata[1];
         tmp[no].loc = loc.toString(16);
@@ -74,7 +69,7 @@ lineReader2.on('line', function(line) {
         loc = loc + 3;
     }
     if(opTable.has(inputdata[1])){
-        checkAddressing++;
+        //checkAddressing++;
         if(!inputdata.includes('RSUB'))
             tmp[no].oprand = inputdata[2];
         tmp[no].loc = loc.toString(16);
@@ -84,6 +79,8 @@ lineReader2.on('line', function(line) {
         tmp[no].Addressing = 'direct';
         loc = loc + 3;
     }
+
+    //oprand為index的調整
     if(inputdata.includes('BUFFER,')){
         tmp[no].Addressing = 'index';
         let oprand = inputdata[inputdata.indexOf('BUFFER,')] + "X";
@@ -91,14 +88,14 @@ lineReader2.on('line', function(line) {
     }
     if(inputdata.includes('BUFFER,X'))
         tmp[no].Addressing = 'index';
+    
     if(inputdata.includes('END')){
         tmp[no].Mnemonic = inputdata[0];
         tmp[no].oprand = inputdata[1];
-        //tmp[no].label = inputdata[0];
-        //tmp[no].Mnemonic = inputdata[1];
         tmp[no].loc = loc.toString(16);
     }
-    //loc 特殊情況
+
+    //loc 特殊情況計算
     if(inputdata[1]=='BYTE'){
         tmp[no].label = inputdata[0];
         tmp[no].Mnemonic = inputdata[1];
@@ -141,6 +138,7 @@ lineReader2.on('line', function(line) {
         tmp[no].Addressing = 'NULL';
         loc = loc;
     }
+
     //重複定義ERROR
     if(tmp[no].label != 'null' && !SymbolTable.includes(tmp[no].label))
         SymbolTable.push(tmp[no].label);
@@ -156,7 +154,8 @@ lineReader2.on('line', function(line) {
     fs.appendFile("./middle.txt",midData , function (err){
         if (err) console.log(err)
     });
-
+    
+    //寫入中間檔
     fs.writeFile("./middle.json",JSON.stringify(tmp), (err) => {
         if (err) console.log(err)
     });

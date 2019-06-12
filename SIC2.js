@@ -14,26 +14,31 @@ function checkloc(Target){
             return parseInt(tmp[key].loc,16);
     }
 }
+
 function checkOprand(Target){
     for (var key in tmp) {
         if(tmp[key].Mnemonic == Target)
             return tmp[key].oprand;
     }
 }
+
 function checkLabel(Target){
     for (var key in tmp) {
         if(tmp[key].Mnemonic == Target)
             return tmp[key].label;
     }
 }
+
+
 function getLabelLoc(Target){
     for (var key in tmp) {
         if(tmp[key].label == Target)
             return parseInt(tmp[key].loc,16)
     }
 }
-
-async function checkUndefined(){
+//async
+function checkUndefined(){
+    //不是null&&mnemonic不適start,end,word,...label又查不到的
     let oprand;
     for (var key in tmp) {
         if(tmp[key].oprand.substring(0,6) == 'BUFFER'){
@@ -47,7 +52,8 @@ async function checkUndefined(){
                 error[key].reason = oprand + error[key].type;
             }
         }
-        else if(tmp[key].Mnemonic != 'null' && tmp[key].Mnemonic != 'START' && tmp[key].Mnemonic != 'END' && tmp[key].Mnemonic != 'WORD' && tmp[key].Mnemonic != 'BYTE' && tmp[key].Mnemonic != 'RESW' && tmp[key].Mnemonic != 'RESB' && tmp[key].Mnemonic != 'RSUB'){
+        //&& tmp[key].Mnemonic != 'END'
+        else if(tmp[key].Mnemonic != 'null' && tmp[key].Mnemonic != 'START'  && tmp[key].Mnemonic != 'WORD' && tmp[key].Mnemonic != 'BYTE' && tmp[key].Mnemonic != 'RESW' && tmp[key].Mnemonic != 'RESB' && tmp[key].Mnemonic != 'RSUB'){
             oprand = tmp[key].oprand;
             //oprand = tmp[key].oprand.substring(0,6) ;
             if(oprand != 'null' && !SymbolTable.includes(oprand)){
@@ -64,7 +70,6 @@ async function checkUndefined(){
         if (err) console.log(err)
     });
     return;
-//不是null&&mnemonic不適start,end,word,...label又查不到的
 }
 function checkMnemonicError(){
     for (var key in tmp) {
@@ -154,8 +159,8 @@ async function getBody(){
     let nextLine = false;
     for (var key in tmp) {
         let value = objCodeTable.get(parseInt(key));
-        //遇到RE兄弟換行
         
+        //遇到RE兄弟換行
         if(tmp[key].Mnemonic =='RESB' || tmp[key].Mnemonic =='RESW')
             nextLine = true;
         //結束push
