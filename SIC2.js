@@ -29,7 +29,6 @@ function checkLabel(Target){
     }
 }
 
-
 function getLabelLoc(Target){
     for (var key in tmp) {
         if(tmp[key].label == Target)
@@ -202,7 +201,7 @@ async function getBody(){
 //組裝E部分
 async function getTail(){
     let target = await checkOprand('END');
-    let end = await checkloc(target)
+    let end = await getLabelLoc(target);
     let ender = 'E' + ' ' + '00' + end.toString(16);
     return ender;
     

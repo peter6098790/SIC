@@ -2,14 +2,16 @@ var fs = require('fs');
 var readline = require('readline');
 const opTable = new Map();
 const SymbolTable = [];
-const tmp = require("./middle.txt");
-const error = require("./error.json");
+const tmp = {};
+const error = {};
+// const tmp = require("./middle.json");
+// const error = require("./error.json");
 
 //讀入opCode
 var inputStream = fs.createReadStream('opCode.txt');
 var lineReader = readline.createInterface({ input: inputStream });
 lineReader.on('line', function(line) {
-    let x = line.toString().trim().split(' ')
+    let x = line.toString().trim().split(' ') // /[ \t]/g
     opTable.set(x[0],x[1]);
 
 });
@@ -104,6 +106,7 @@ lineReader2.on('line', function(line) {
         tmp[no].Addressing = 'direct';
         if(inputdata[2].includes('C'))
             loc =loc + (inputdata[2].length-3)
+        //需要處理長度問題 不是固定2位
         if(inputdata[2].includes('X'))
             loc =loc +1;
     }
@@ -154,8 +157,11 @@ lineReader2.on('line', function(line) {
     fs.appendFile("./middle.txt",midData , function (err){
         if (err) console.log(err)
     });
-    
+
     //寫入中間檔
+    // fs.open("./middle.json",w);
+    // fs.open("./SymbolTable.json",w);
+    // fs.open("./error.json",w);
     fs.writeFile("./middle.json",JSON.stringify(tmp), (err) => {
         if (err) console.log(err)
     });
