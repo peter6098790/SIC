@@ -1,13 +1,19 @@
+console.time('執行時間');
 var fs = require('fs');
-const SymbolTable = require("./SymbolTable.json")
+//var readline = require('readline');
+const SymbolTable = require("./SymbolTable.json");
 const tmp = require("./middle.json");
 const error = require("./error.json");
+
 
 //找location number
 function checkloc(Target){
     for (var key in tmp) {
-        if(tmp[key].label == Target)
+        if(tmp[key].label == Target){
+            //console.log(parseInt(tmp[key].loc,16));
             return parseInt(tmp[key].loc,16);
+            //return tmp[key].loc;
+        }    
         if(tmp[key].Mnemonic == Target)
             return parseInt(tmp[key].loc,16);
         else if(tmp[key].oprand == Target)
@@ -31,37 +37,27 @@ function checkLabel(Target){
 
 function getLabelLoc(Target){
     for (var key in tmp) {
-        if(tmp[key].label == Target)
-            return parseInt(tmp[key].loc,16)
+        if(tmp[key].label == Target){
+            //let value = '0000'.substring(0,4-loc.toString(16).length) + loc.toString(16)
+            let value = parseInt(tmp[key].loc,16)
+            return parseInt(tmp[key].loc,16);
+            //'0000'.substring(0,4-[key].loc.length) + parseInt(tmp[key].loc,16)
+            //parseInt(tmp[key].loc,16);//tmp[key].loc//
+        }
+        //console.log(tmp[key].loc)
     }
 }
-//async
+
+
 function checkUndefined(){
-    //不是null&&mnemonic不適start,end,word,...label又查不到的
+    //不是null&&mnemonic不是start,end,word,...label又查不到的
     let oprand;
     for (var key in tmp) {
-        if(tmp[key].oprand.substring(0,6) == 'BUFFER'){
-            oprand = tmp[key].oprand.substring(0,6) ;
-            if(!SymbolTable.includes(oprand)){
-                error[key] = {
-                    line: tmp[key].line ,
-                    type: ' is undefined!',
-                    reason: ''
-                }
-                error[key].reason = oprand + error[key].type;
-            }
-        }
-        //&& tmp[key].Mnemonic != 'END'
-        else if(tmp[key].Mnemonic != 'null' && tmp[key].Mnemonic != 'START'  && tmp[key].Mnemonic != 'WORD' && tmp[key].Mnemonic != 'BYTE' && tmp[key].Mnemonic != 'RESW' && tmp[key].Mnemonic != 'RESB' && tmp[key].Mnemonic != 'RSUB'){
+        if(tmp[key].Mnemonic != 'null' && tmp[key].Mnemonic != 'START'  && tmp[key].Mnemonic != 'WORD' && tmp[key].Mnemonic != 'BYTE' && tmp[key].Mnemonic != 'RESW' && tmp[key].Mnemonic != 'RESB' && tmp[key].Mnemonic != 'RSUB'){
             oprand = tmp[key].oprand;
-            //oprand = tmp[key].oprand.substring(0,6) ;
-            if(oprand != 'null' && !SymbolTable.includes(oprand)){
-                error[key] = {
-                    line: tmp[key].line ,
-                    type: ' is undefined!',
-                    reason: ''
-                }
-                error[key].reason = oprand + error[key].type;
+            if(oprand != 'null' && SymbolTable[oprand]== -1){ //.includes
+                let errorStr = 'line:' + tmp[key].line  + ' ERROR ' + oprand + ' undefned!'
+                error.push(errorStr);
             }
         }
     }
@@ -73,12 +69,8 @@ function checkUndefined(){
 function checkMnemonicError(){
     for (var key in tmp) {
         if(tmp[key].Mnemonic != 'null' && tmp[key].Mnemonic != 'START' && tmp[key].Mnemonic != 'END' && tmp[key].Mnemonic != 'WORD' && tmp[key].Mnemonic != 'BYTE' && tmp[key].Mnemonic != 'RESB' && tmp[key].Mnemonic != 'RESW' && tmp[key].Mnemonic != 'RSUB' && tmp[key].opCode == 'null'){
-            error[key] = {
-                line: tmp[key].line ,
-                type: ' MnemonicError',
-                reason: ''
-            }
-            error[key].reason = tmp[key].Mnemonic + error[key].type;
+            let errorStr = 'line:' + tmp[key].line  + ' ERROR ' + tmp[key].Mnemonic + ' MnemonicError!'
+            error.push(errorStr);
         }
     }
     fs.writeFile("./error.json",JSON.stringify(error), (err) => {
@@ -88,21 +80,24 @@ function checkMnemonicError(){
 }
 
 //產生object code
-async function generateObjCode(){
+function generateObjCode(){
     var objectCode;
     var objCodeTable = new Map(); // key: line. value:[objcode,loc]
     for (var key in tmp){
         if(tmp[key].Mnemonic != 'null' && tmp[key].Mnemonic != 'START' &&  tmp[key].Mnemonic !='END' && tmp[key].Mnemonic !='RESW' && tmp[key].Mnemonic !='RESB' ){
-            let oprand ;
-
+            let oprand = SymbolTable[SymbolTable.indexOf(tmp[key].oprand)+1];
             if(tmp[key].Addressing == 'direct'){
-                oprand = await getLabelLoc(tmp[key].oprand);
-                objectCode = tmp[key].opCode.toString() + parseInt(oprand,10).toString(16);
+                ///oprand =  getLabelLoc(tmp[key].oprand);
+                //************** */問題is here *****************
+                ///let locnumber = '0000'.substring(0,4-parseInt(oprand,10).toString(16).length) + parseInt(oprand,10).toString(16)
+                objectCode = tmp[key].opCode.toString() + oprand ;//locnumber; 
                 objCodeTable.set(tmp[key].line,objectCode);
             }
             if(tmp[key].Addressing == 'index'){
-                oprand = await getLabelLoc('BUFFER');
-                objectCode = tmp[key].opCode.toString() + (oprand+parseInt(8000,16)).toString(16);
+                //oprand =  SymbolTable[SymbolTable.indexOf(tmp[key].oprand)+1];
+                //let locnumber = '0000'.substring(0,4-(oprand+parseInt(8000,16)).toString(16).length) + (oprand+parseInt(8000,16)).toString(16)
+                let locnumber = '0000'.substring(0,4-((parseInt(oprand,16)+parseInt(8000,16))).toString(16).length) + (parseInt(oprand,16)+parseInt(8000,16)).toString(16)
+                objectCode = tmp[key].opCode.toString() + locnumber      //(oprand+parseInt(8000,16)).toString(16);
                 objCodeTable.set(tmp[key].line,objectCode);
             }
         }
@@ -113,8 +108,7 @@ async function generateObjCode(){
         }
         if(tmp[key].Mnemonic == 'BYTE'){
             if(tmp[key].oprand.charAt(0) == 'X'){
-                //若X後長度>2 => error
-                objectCode = tmp[key].oprand.substring(2,4)
+                objectCode = tmp[key].oprand.substring(2,tmp[key].oprand.length-1)
                 objCodeTable.set(tmp[key].line,objectCode);
             }
             if(tmp[key].oprand.charAt(0) == 'C'){
@@ -136,25 +130,36 @@ async function generateObjCode(){
         }
     }
     return objCodeTable;
-    //console.log(objCodeTable);
 }
 
 //Object Program
 //組裝H部分
-async function getHeader(){
-    let head = await checkloc('START');
-    let label = await checkLabel('START')
-    let end = await checkloc('END');
-    let header = 'H' + ' ' + label + ' ' + '00' + head.toString(16) + ' ' + '00' + (end-head).toString(16);
+function getHeader(){
+    let head =  checkloc('START');
+    let label = checkLabel('START');
+
+    let head_4 = '0000'.substring(0,4-checkloc(checkLabel('START')).toString(16).length) + checkloc(checkLabel('START')).toString(16);
+    let end =  checkloc('END');
+    let header = 'H' + ' ' + label + ' ' + '00' + head_4 + ' ' + '00' + (end-head).toString(16);
+    //checkloc(label).toString(16)
     return header;
 }
+//組裝E部分
+function getTail(){
+    let target =  checkOprand('END');
+    let end =  getLabelLoc(target);
+    let end_4 = '0000'.substring(0,4-end.toString(16).length) + end.toString(16);
+    let ender = 'E' + ' ' + '00' + end_4;
+    return ender;
+    
+}
 //組裝T部分
-async function getBody(){
+function getBody(){
     let str=' ';
     let bodyArr = [];
     let locArr = [];
     let Tlength = 0;
-    let objCodeTable = await generateObjCode();
+    let objCodeTable =  generateObjCode();
     let nextLine = false;
     for (var key in tmp) {
         let value = objCodeTable.get(parseInt(key));
@@ -171,8 +176,6 @@ async function getBody(){
             locArr.push(tmp[key].loc);
             if(Tlength + parseInt(value.length/2) <= 30){
                 if( nextLine == true ){
-                    if(Tlength.length <2)
-                        Tlength.toString(16) = '0' + Tlength.toString(16);
                     str = 'T ' + '00' + locArr[0] + ' ' + Tlength.toString(16) + str;
                     bodyArr.push(str);
                     nextLine = false;
@@ -185,8 +188,6 @@ async function getBody(){
                     Tlength = Tlength + parseInt(value.length/2);
                 }
             }else if(Tlength + parseInt(value.length/2) >30 ){
-                if(Tlength.length <2)
-                    Tlength.toString(16) = '0' + Tlength.toString(16);
                 str = 'T ' + '00' + locArr[0] + ' ' + Tlength.toString(16) + str;
                 bodyArr.push(str);
                 str = ' ' + value.toString() + '^';
@@ -198,21 +199,18 @@ async function getBody(){
     }
     return bodyArr;
 }
-//組裝E部分
-async function getTail(){
-    let target = await checkOprand('END');
-    let end = await getLabelLoc(target);
-    let ender = 'E' + ' ' + '00' + end.toString(16);
-    return ender;
-    
-}
-async function showObjProgram(){
-    let headStr = await getHeader();
-    let endStr  = await getTail();
-    let body    = await getBody();
+
+function showObjProgram(){
+    let headStr =  getHeader();
+    let endStr  =  getTail();
+    let body    =  getBody();
     let bodyStr = '';
     body.forEach(element => {
         bodyStr = bodyStr + element + '\n';
+    });
+    let ObjStr = headStr + '\n' + bodyStr + endStr;
+    fs.writeFile("./ObjProgram.txt",ObjStr , function (err){
+        if (err) console.log(err)
     });
     console.log(headStr + '\n' + bodyStr + endStr);
 }
@@ -231,12 +229,12 @@ function main(){
     if(isEmpty(error))
         showObjProgram();
     else{
-        for (var key in error){
-            console.log(`line:${error[key].line} ERROR: ${error[key].reason}`)
-        }
+        error.forEach(element => {
+            console.log(element);
+        })
     }
 }
-
+console.timeEnd('執行時間');
 
 
 
